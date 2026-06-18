@@ -113,6 +113,8 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
+仓库同时包含 `runtime.txt`，用于固定 Render 的 Python 版本为 `3.11.9`，避免平台默认使用过新的 Python 版本导致依赖构建失败。
+
 在 Render 环境变量中配置：
 
 - `DEEPSEEK_API_KEY`
