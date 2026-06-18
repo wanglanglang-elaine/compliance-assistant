@@ -113,7 +113,7 @@ pip install -r requirements.txt
 uvicorn main:app --host 0.0.0.0 --port $PORT
 ```
 
-仓库同时包含 `runtime.txt`，用于固定 Render 的 Python 版本为 `3.11.9`，避免平台默认使用过新的 Python 版本导致依赖构建失败。
+仓库同时包含 `.python-version`，并在 `render.yaml` 中设置 `PYTHON_VERSION=3.11.9`，用于固定 Render 的 Python 版本，避免平台默认使用过新的 Python 版本导致依赖构建失败。
 
 在 Render 环境变量中配置：
 
