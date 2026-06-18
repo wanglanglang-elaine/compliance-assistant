@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>合规来函分析系统</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f0f2f5;
+  color: #1a1a2e;
+  min-height: 100vh;
+}
+
+header {
+  background: #1a1a2e;
+  color: white;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+header h1 { font-size: 17px; font-weight: 600; }
+header .badge { background: #4f86f7; font-size: 11px; padding: 2px 8px; border-radius: 10px; }
+
+/* Tabs */
+.tabs {
+  background: white;
+  border-bottom: 1px solid #e8e8e8;
+  display: flex;
+  padding: 0 32px;
+}
+.tab {
+  padding: 12px 20px;
+  font-size: 14px;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  color: #888;
+  transition: all 0.2s;
+  user-select: none;
+}
+.tab.active { color: #4f86f7; border-bottom-color: #4f86f7; font-weight: 600; }
+.tab:hover:not(.active) { color: #444; }
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.main { max-width: 1200px; margin: 0 auto; padding: 24px 20px; }
+
+/* Cards */
+.card {
+  background: white;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+.card-header {
+  padding: 13px 18px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1px solid #f0f0f0;
+}
+.card-header .icon { font-size: 15px; }
+.card-header h2 { font-size: 12px; font-weight: 700; color: #555; text-transform: uppercase; letter-spacing: 0.5px; flex: 1; }
+.card-body { padding: 16px 18px; }
+
+.card.draft-a .card-header { background: #f0f7ff; }
+.card.draft-b .card-header { background: #fff7f0; }
+.card.legal  .card-header { background: #f6f0ff; }
+.card.team-qa      .card-header { background: #f0fff4; }
+.card.team-product .card-header { background: #fff8f0; }
+.card.team-review  .card-header { background: #f0f8ff; }
+.card.summary      .card-header { background: #fafafa; }
+.card.archive      .card-header { background: #fffbe6; }
+
+/* Input */
+.input-card { background: white; border-radius: 12px; padding: 22px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); margin-bottom: 20px; }
+.input-card label { display: block; font-size: 12px; font-weight: 700; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px; }
+textarea {
+  width: 100%; min-height: 160px;
+  border: 1.5px solid #e0e0e0; border-radius: 8px;
+  padding: 12px; font-size: 14px; line-height: 1.6;
+  resize: vertical; font-family: inherit; color: #1a1a2e;
+  transition: border-color 0.2s;
+}
+textarea:focus { outline: none; border-color: #4f86f7; }
+textarea.small { min-height: 90px; }
+
+.actions { display: flex; gap: 10px; align-items: center; margin-top: 12px; }
+
+button.primary {
+  background: #4f86f7; color: white; border: none;
+  padding: 9px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+button.primary:hover { background: #3a70e0; }
+button.primary:disabled { background: #aaa; cursor: not-allowed; }
+
+button.secondary {
+  background: transparent; color: #888;
+  border: 1.5px solid #e0e0e0; padding: 9px 18px;
+  border-radius: 8px; font-size: 14px; cursor: pointer;
+}
+button.secondary:hover { border-color: #aaa; color: #555; }
+
+button.success {
+  background: #52c41a; color: white; border: none;
+  padding: 9px 24px; border-radius: 8px; font-size: 14px; font-weight: 600;
+  cursor: pointer; transition: background 0.2s;
+}
+button.success:hover { background: #389e0d; }
+button.success:disabled { background: #aaa; cursor: not-allowed; }
+
+.spinner { display: none; align-items: center; gap: 8px; font-size: 13px; color: #888; }
+.spinner.show { display: flex; }
+.dot { width: 7px; height: 7px; border-radius: 50%; background: #4f86f7; animation: pulse 1.2s ease-in-out infinite; }
+.dot:nth-child(2) { animation-delay: 0.2s; }
+.dot:nth-child(3) { animation-delay: 0.4s; }
+@keyframes pulse { 0%,80%,100%{opacity:.3;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+/* Urgency */
+.urgency-banner { border-radius: 10px; padding: 14px 18px; margin-bottom: 16px; display: flex; align-items: flex-start; gap: 14px; }
+.urgency-banner.high   { background: #fff1f0; border-left: 4px solid #ff4d4f; }
+.urgency-banner.medium { background: #fffbe6; border-left: 4px solid #faad14; }
+.urgency-banner.low    { background: #f6ffed; border-left: 4px solid #52c41a; }
+.urgency-level { font-size: 20px; font-weight: 700; min-width: 44px; }
+.urgency-level.high   { color: #ff4d4f; }
+.urgency-level.medium { color: #faad14; }
+.urgency-level.low    { color: #52c41a; }
+.urgency-info h3 { font-size: 14px; margin-bottom: 3px; }
+.urgency-info p  { font-size: 13px; color: #666; }
+
+/* Reg tags */
+.regs-row { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 16px; }
+.reg-tag { background: #e8f0fe; color: #1a56db; font-size: 12px; font-weight: 600; padding: 3px 10px; border-radius: 20px; }
+
+/* Grid */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media(max-width:900px){ .grid-2,.grid-3{ grid-template-columns:1fr; } }
+
+/* Text areas inside cards */
+.draft-subject { font-size: 12px; color: #999; margin-bottom: 8px; font-style: italic; }
+.draft-en { font-size: 13px; line-height: 1.7; white-space: pre-wrap; color: #222; border-left: 3px solid #4f86f7; padding-left: 10px; margin-bottom: 12px; }
+.draft-zh { font-size: 13px; line-height: 1.7; white-space: pre-wrap; color: #555; border-left: 3px solid #e0e0e0; padding-left: 10px; }
+.zh-label { font-size: 11px; color: #bbb; margin-bottom: 4px; font-weight: 600; text-transform: uppercase; }
+.opinion-text { font-size: 13px; line-height: 1.8; color: #333; white-space: pre-wrap; }
+.summary-text { font-size: 14px; line-height: 1.8; color: #333; }
+
+.copy-btn { float: right; font-size: 11px; color: #bbb; cursor: pointer; background: none; border: 1px solid #e8e8e8; border-radius: 4px; padding: 2px 8px; transition: all 0.2s; }
+.copy-btn:hover { color: #4f86f7; border-color: #4f86f7; }
+
+.dingtalk-status { font-size: 12px; color: #999; margin-top: 12px; padding: 7px 12px; background: #fafafa; border-radius: 6px; }
+.error-msg { background: #fff1f0; border: 1px solid #ffccc7; color: #cf1322; padding: 13px 18px; border-radius: 8px; font-size: 14px; margin-bottom: 14px; }
+
+/* Archive panel */
+#archivePanel { display: none; }
+#archivePanel.show { display: block; }
+.archive-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 14px; }
+@media(max-width:700px){ .archive-fields{ grid-template-columns:1fr; } }
+.field-group label { display: block; font-size: 12px; font-weight: 700; color: #888; margin-bottom: 6px; text-transform: uppercase; }
+.status-select {
+  width: 100%; padding: 8px 10px; border: 1.5px solid #e0e0e0;
+  border-radius: 8px; font-size: 14px; font-family: inherit;
+  background: white; color: #1a1a2e;
+}
+.status-select:focus { outline: none; border-color: #4f86f7; }
+.archive-saved { color: #52c41a; font-size: 13px; font-weight: 600; }
+
+/* Cases list */
+.cases-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.cases-table th { text-align: left; padding: 10px 14px; background: #fafafa; color: #888; font-weight: 600; font-size: 12px; text-transform: uppercase; border-bottom: 1px solid #f0f0f0; }
+.cases-table td { padding: 12px 14px; border-bottom: 1px solid #f5f5f5; vertical-align: top; }
+.cases-table tr:hover td { background: #fafeff; }
+.urgency-dot { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 6px; }
+.urgency-dot.high   { background: #ff4d4f; }
+.urgency-dot.medium { background: #faad14; }
+.urgency-dot.low    { background: #52c41a; }
+.status-badge { display: inline-block; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.status-badge.processing { background: #e6f7ff; color: #1890ff; }
+.status-badge.replied    { background: #fff7e6; color: #fa8c16; }
+.status-badge.closed     { background: #f6ffed; color: #52c41a; }
+.view-btn { font-size: 12px; color: #4f86f7; cursor: pointer; background: none; border: none; padding: 0; text-decoration: underline; }
+.empty-cases { text-align: center; padding: 48px; color: #bbb; font-size: 14px; }
+
+/* Modal */
+.modal-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 100; align-items: center; justify-content: center; }
+.modal-overlay.show { display: flex; }
+.modal { background: white; border-radius: 14px; width: 90%; max-width: 780px; max-height: 85vh; overflow-y: auto; padding: 28px; }
+.modal h2 { font-size: 16px; margin-bottom: 18px; }
+.modal-close { float: right; cursor: pointer; font-size: 20px; color: #aaa; line-height: 1; }
+.modal-close:hover { color: #333; }
+.modal-section { margin-bottom: 16px; }
+.modal-section h4 { font-size: 12px; font-weight: 700; color: #888; text-transform: uppercase; margin-bottom: 6px; }
+.modal-section p { font-size: 13px; line-height: 1.7; color: #333; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>合规来函分析系统</h1>
+  <span class="badge">EU Compliance</span>
+</header>
+
+<!-- Tabs -->
+<div class="tabs">
+  <div class="tab active" onclick="switchTab('analyze')">来函分析</div>
+  <div class="tab" onclick="switchTab('cases')">案例库</div>
+</div>
+
+<!-- ===== TAB: Analyze ===== -->
+<div id="tab-analyze" class="tab-content active">
+<div class="main">
+
+  <div class="input-card">
+    <label>粘贴来函内容</label>
+    <textarea id="letterInput" placeholder="将来函原文粘贴至此（支持中英文混合）..."></textarea>
+    <div class="actions">
+      <button class="primary" id="analyzeBtn" onclick="analyze()">开始分析</button>
+      <button class="secondary" onclick="clearAll()">清空</button>
+      <div class="spinner" id="spinner">
+        <div class="dot"></div><div class="dot"></div><div class="dot"></div>
+        <span>AI分析中，约15-30秒...</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-msg" id="errorMsg" style="display:none"></div>
+
+  <div id="results" style="display:none">
+
+    <!-- Urgency -->
+    <div class="urgency-banner" id="urgencyBanner">
+      <div class="urgency-level" id="urgencyLevel"></div>
+      <div class="urgency-info">
+        <h3 id="urgencyTitle"></h3>
+        <p id="urgencyReason"></p>
+      </div>
+    </div>
+
+    <!-- Regulations -->
+    <div class="regs-row" id="regsRow"></div>
+
+    <!-- Summary -->
+    <div class="card summary">
+      <div class="card-header">
+        <span class="icon">📋</span><h2>来函摘要</h2>
+        <button class="copy-btn" onclick="copyId('summaryText')">复制</button>
+      </div>
+      <div class="card-body"><p class="summary-text" id="summaryText"></p></div>
+    </div>
+
+    <!-- Drafts -->
+    <div class="grid-2">
+      <div class="card draft-a">
+        <div class="card-header">
+          <span class="icon">✉️</span><h2>Draft A · 确认收函</h2>
+          <button class="copy-btn" onclick="copyId('draftAEn')">复制英文</button>
+        </div>
+        <div class="card-body">
+          <p class="draft-subject" id="draftASubject"></p>
+          <p class="draft-en" id="draftAEn"></p>
+          <p class="zh-label">中文对照</p>
+          <p class="draft-zh" id="draftAZh"></p>
+        </div>
+      </div>
+      <div class="card draft-b">
+        <div class="card-header">
+          <span class="icon">📩</span><h2>Draft B · 推荐行动回函</h2>
+          <button class="copy-btn" onclick="copyId('draftBEn')">复制英文</button>
+        </div>
+        <div class="card-body">
+          <p class="draft-subject" id="draftBSubject"></p>
+          <p class="draft-en" id="draftBEn"></p>
+          <p class="zh-label">中文对照</p>
+          <p class="draft-zh" id="draftBZh"></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Legal -->
+    <div class="card legal">
+      <div class="card-header">
+        <span class="icon">⚖️</span><h2>法律合规意见</h2>
+        <button class="copy-btn" onclick="copyId('legalOpinion')">复制</button>
+      </div>
+      <div class="card-body"><p class="opinion-text" id="legalOpinion"></p></div>
+    </div>
+
+    <!-- Teams -->
+    <div class="grid-3">
+      <div class="card team-qa">
+        <div class="card-header"><span class="icon">🏷️</span><h2>资质组</h2><button class="copy-btn" onclick="copyId('teamQA')">复制</button></div>
+        <div class="card-body"><p class="opinion-text" id="teamQA"></p></div>
+      </div>
+      <div class="card team-product">
+        <div class="card-header"><span class="icon">🔧</span><h2>产品组</h2><button class="copy-btn" onclick="copyId('teamProduct')">复制</button></div>
+        <div class="card-body"><p class="opinion-text" id="teamProduct"></p></div>
+      </div>
+      <div class="card team-review">
+        <div class="card-header"><span class="icon">🔍</span><h2>审核组</h2><button class="copy-btn" onclick="copyId('teamReview')">复制</button></div>
+        <div class="card-body"><p class="opinion-text" id="teamReview"></p></div>
+      </div>
+    </div>
+
+    <div class="dingtalk-status" id="dingTalkStatus"></div>
+
+    <!-- Archive Panel -->
+    <div class="card archive" id="archivePanel">
+      <div class="card-header">
+        <span class="icon">🗂️</span>
+        <h2>归档本案 · 积累学习样本</h2>
+        <span class="archive-saved" id="archiveSaved" style="display:none">已归档</span>
+      </div>
+      <div class="card-body">
+        <div class="archive-fields">
+          <div class="field-group">
+            <label>实际采取行动</label>
+            <textarea class="small" id="actualAction" placeholder="描述实际做了什么（供AI下次参考）..."></textarea>
+          </div>
+          <div class="field-group">
+            <label>真实回函内容</label>
+            <textarea class="small" id="actualReply" placeholder="粘贴最终发出的回函..."></textarea>
+          </div>
+          <div class="field-group">
+            <label>纠错备注</label>
+            <textarea class="small" id="correctionNotes" placeholder="AI哪里判断有误？下次应怎样改？..."></textarea>
+          </div>
+          <div class="field-group">
+            <label>结案状态</label>
+            <select class="status-select" id="caseStatus">
+              <option value="processing">处理中</option>
+              <option value="replied">已回函</option>
+              <option value="closed">已结案</option>
+            </select>
+          </div>
+        </div>
+        <div class="actions">
+          <button class="success" id="saveBtn" onclick="saveCase()">保存归档</button>
+          <span style="font-size:12px;color:#aaa">结案后的案例将作为AI参考样本</span>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /results -->
+</div>
+</div>
+
+<!-- ===== TAB: Cases ===== -->
+<div id="tab-cases" class="tab-content">
+<div class="main">
+  <div class="card">
+    <div class="card-header">
+      <span class="icon">📚</span>
+      <h2>历史案例库</h2>
+      <button class="copy-btn" style="float:right" onclick="loadCases()">刷新</button>
+    </div>
+    <div class="card-body" style="padding:0">
+      <div id="casesContent">
+        <p class="empty-cases">加载中...</p>
+      </div>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="closeModal(event)">
+  <div class="modal" id="modalContent">
+    <span class="modal-close" onclick="closeModalDirect()">×</span>
+    <h2 id="modalTitle">案例详情</h2>
+    <div id="modalBody"></div>
+  </div>
+</div>
+
+<script>
+// State
+let currentResult = null;
+let currentLetter = null;
+let savedCaseId = null;
+
+// ---------------------------------------------------------------------------
+// Tabs
+// ---------------------------------------------------------------------------
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const tabs = ['analyze', 'cases'];
+    t.classList.toggle('active', tabs[i] === name);
+  });
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  if (name === 'cases') loadCases();
+}
+
+// ---------------------------------------------------------------------------
+// Analyze
+// ---------------------------------------------------------------------------
+async function analyze() {
+  const content = document.getElementById('letterInput').value.trim();
+  if (!content) { alert('请先粘贴来函内容'); return; }
+
+  document.getElementById('analyzeBtn').disabled = true;
+  document.getElementById('spinner').classList.add('show');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('archivePanel').classList.remove('show');
+  document.getElementById('archiveSaved').style.display = 'none';
+  document.getElementById('errorMsg').style.display = 'none';
+  savedCaseId = null;
+
+  try {
+    const resp = await fetch('/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content })
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail || '分析失败');
+
+    currentResult = data;
+    currentLetter = content;
+    renderResults(data);
+  } catch(e) {
+    document.getElementById('errorMsg').textContent = '错误：' + e.message;
+    document.getElementById('errorMsg').style.display = 'block';
+  } finally {
+    document.getElementById('analyzeBtn').disabled = false;
+    document.getElementById('spinner').classList.remove('show');
+  }
+}
+
+function renderResults(d) {
+  const urgency = d.urgency || '中';
+  const levelMap = { '高':'high', '中':'medium', '低':'low' };
+  const emojiMap = { '高':'🔴 高优先级', '中':'🟡 中优先级', '低':'🟢 低优先级' };
+
+  const banner = document.getElementById('urgencyBanner');
+  banner.className = 'urgency-banner ' + (levelMap[urgency] || 'medium');
+  const lv = document.getElementById('urgencyLevel');
+  lv.textContent = urgency;
+  lv.className = 'urgency-level ' + (levelMap[urgency] || 'medium');
+  document.getElementById('urgencyTitle').textContent = emojiMap[urgency] || urgency;
+  document.getElementById('urgencyReason').textContent = d.urgency_reason || '';
+
+  document.getElementById('regsRow').innerHTML = (d.regulations || [])
+    .map(r => `<span class="reg-tag">${r}</span>`).join('');
+
+  document.getElementById('summaryText').textContent = d.summary || '';
+
+  const a = d.external_a || {};
+  document.getElementById('draftASubject').textContent = a.subject ? '主题：' + a.subject : '';
+  document.getElementById('draftAEn').textContent = a.en || '';
+  document.getElementById('draftAZh').textContent = a.zh || '';
+
+  const b = d.external_b || {};
+  document.getElementById('draftBSubject').textContent = b.subject ? '主题：' + b.subject : '';
+  document.getElementById('draftBEn').textContent = b.en || '';
+  document.getElementById('draftBZh').textContent = b.zh || '';
+
+  document.getElementById('legalOpinion').textContent = d.legal_opinion || '';
+  const t = d.team_opinions || {};
+  document.getElementById('teamQA').textContent = t['资质组'] || '';
+  document.getElementById('teamProduct').textContent = t['产品组'] || '';
+  document.getElementById('teamReview').textContent = t['审核组'] || '';
+
+  const dt = d.dingtalk || {};
+  if (dt.skipped) {
+    document.getElementById('dingTalkStatus').textContent = '钉钉通知：未配置';
+  } else if (dt.errcode === 0) {
+    document.getElementById('dingTalkStatus').textContent = '✓ 钉钉通知已发送';
+  } else {
+    document.getElementById('dingTalkStatus').textContent = '钉钉通知：' + JSON.stringify(dt);
+  }
+
+  document.getElementById('results').style.display = 'block';
+  document.getElementById('archivePanel').classList.add('show');
+  document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearAll() {
+  document.getElementById('letterInput').value = '';
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('archivePanel').classList.remove('show');
+  document.getElementById('errorMsg').style.display = 'none';
+  currentResult = null; currentLetter = null; savedCaseId = null;
+}
+
+// ---------------------------------------------------------------------------
+// Archive
+// ---------------------------------------------------------------------------
+async function saveCase() {
+  if (!currentResult) return;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  btn.textContent = '保存中...';
+
+  const payload = {
+    letter_content: currentLetter,
+    regulations: currentResult.regulations || [],
+    ai_summary: currentResult.summary || '',
+    ai_urgency: currentResult.urgency || '',
+    ai_legal_opinion: currentResult.legal_opinion || '',
+    ai_draft_a: currentResult.external_a || {},
+    ai_draft_b: currentResult.external_b || {},
+    ai_team_opinions: currentResult.team_opinions || {},
+    actual_action: document.getElementById('actualAction').value,
+    actual_reply: document.getElementById('actualReply').value,
+    correction_notes: document.getElementById('correctionNotes').value,
+    status: document.getElementById('caseStatus').value,
+  };
+
+  try {
+    const resp = await fetch('/cases', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    const data = await resp.json();
+    if (!resp.ok) throw new Error(data.detail);
+    savedCaseId = data.id;
+    document.getElementById('archiveSaved').style.display = 'inline';
+    btn.textContent = '更新归档';
+    btn.disabled = false;
+    btn.onclick = updateCase;
+  } catch(e) {
+    alert('归档失败：' + e.message);
+    btn.disabled = false;
+    btn.textContent = '保存归档';
+  }
+}
+
+async function updateCase() {
+  if (!savedCaseId) return;
+  const btn = document.getElementById('saveBtn');
+  btn.disabled = true;
+  try {
+    await fetch('/cases/' + savedCaseId, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        actual_action: document.getElementById('actualAction').value,
+        actual_reply: document.getElementById('actualReply').value,
+        correction_notes: document.getElementById('correctionNotes').value,
+        status: document.getElementById('caseStatus').value,
+      })
+    });
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Cases list
+// ---------------------------------------------------------------------------
+async function loadCases() {
+  document.getElementById('casesContent').innerHTML = '<p class="empty-cases">加载中...</p>';
+  try {
+    const resp = await fetch('/cases');
+    const cases = await resp.json();
+    if (!cases.length) {
+      document.getElementById('casesContent').innerHTML = '<p class="empty-cases">暂无案例，分析并归档来函后会出现在这里</p>';
+      return;
+    }
+    const statusLabel = { processing:'处理中', replied:'已回函', closed:'已结案' };
+    const levelMap = { '高':'high', '中':'medium', '低':'low' };
+    const rows = cases.map(c => {
+      const regs = c.regulations ? JSON.parse(c.regulations).slice(0,3).join('、') : '-';
+      const dot = levelMap[c.ai_urgency] || 'medium';
+      const badge = c.status || 'processing';
+      return `<tr>
+        <td style="color:#aaa;font-size:12px">${c.created_at.slice(0,10)}</td>
+        <td><span class="urgency-dot ${dot}"></span>${c.ai_urgency || '-'}</td>
+        <td style="max-width:320px">${c.ai_summary || '-'}</td>
+        <td style="color:#888;font-size:12px">${regs}</td>
+        <td><span class="status-badge ${badge}">${statusLabel[badge] || badge}</span></td>
+        <td><button class="view-btn" onclick="viewCase(${c.id})">查看</button></td>
+      </tr>`;
+    }).join('');
+    document.getElementById('casesContent').innerHTML = `
+      <table class="cases-table">
+        <thead><tr>
+          <th>日期</th><th>优先级</th><th>摘要</th><th>涉及法规</th><th>状态</th><th></th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  } catch(e) {
+    document.getElementById('casesContent').innerHTML = '<p class="empty-cases">加载失败</p>';
+  }
+}
+
+async function viewCase(id) {
+  const resp = await fetch('/cases/' + id);
+  const c = await resp.json();
+
+  const draftA = c.ai_draft_a ? JSON.parse(c.ai_draft_a) : {};
+  const draftB = c.ai_draft_b ? JSON.parse(c.ai_draft_b) : {};
+  const teams  = c.ai_team_opinions ? JSON.parse(c.ai_team_opinions) : {};
+  const regs   = c.regulations ? JSON.parse(c.regulations).join('、') : '-';
+
+  document.getElementById('modalTitle').textContent = `案例 #${c.id} · ${c.created_at.slice(0,10)}`;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="modal-section"><h4>来函摘要</h4><p>${c.ai_summary || '-'}</p></div>
+    <div class="modal-section"><h4>涉及法规</h4><p>${regs}</p></div>
+    <div class="modal-section"><h4>法律意见</h4><p>${c.ai_legal_opinion || '-'}</p></div>
+    <div class="modal-section"><h4>Draft B（推荐回函）</h4><p>${draftB.en || '-'}</p></div>
+    <div class="modal-section"><h4>资质组</h4><p>${teams['资质组'] || '-'}</p></div>
+    <div class="modal-section"><h4>产品组</h4><p>${teams['产品组'] || '-'}</p></div>
+    <div class="modal-section"><h4>审核组</h4><p>${teams['审核组'] || '-'}</p></div>
+    ${c.actual_action ? `<div class="modal-section"><h4>实际采取行动</h4><p>${c.actual_action}</p></div>` : ''}
+    ${c.actual_reply  ? `<div class="modal-section"><h4>真实回函</h4><p>${c.actual_reply}</p></div>` : ''}
+    ${c.correction_notes ? `<div class="modal-section"><h4>纠错备注</h4><p>${c.correction_notes}</p></div>` : ''}
+  `;
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('modalOverlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+// ---------------------------------------------------------------------------
+// Utils
+// ---------------------------------------------------------------------------
+function copyId(id) {
+  const text = document.getElementById(id).textContent;
+  navigator.clipboard.writeText(text).then(() => {
+    const btn = event.target;
+    const orig = btn.textContent;
+    btn.textContent = '已复制';
+    setTimeout(() => btn.textContent = orig, 1500);
+  });
+}
+
+document.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') analyze();
+  if (e.key === 'Escape') closeModalDirect();
+});
+</script>
+</body>
+</html>
